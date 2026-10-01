@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --font-sans: "Franklin Gothic Medium", "Arial Narrow", Arial, sans-serif;
+  --font-serif: Georgia, "Times New Roman", serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: #f3f0e6;
+  color: #17201d;
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+::selection { background: #c6d8cd; }
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+}
