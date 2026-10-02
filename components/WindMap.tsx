@@ -136,6 +136,10 @@ export default function WindMap() {
   useEffect(() => {
     if (!containerRef.current || !gridData || mapRef.current) return;
 
+    // Next.js cannot reliably infer MapLibre's module-worker URL after bundling.
+    // Serve the official worker and its shared module from stable public paths.
+    maplibregl.setWorkerUrl("/maplibre-gl-worker.mjs");
+
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: {
