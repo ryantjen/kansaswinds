@@ -147,9 +147,20 @@ export default function WindMap() {
             tileSize: 256,
             attribution: "© OpenStreetMap contributors",
           },
+          "wind-sites": { type: "geojson", data: gridData },
         },
         layers: [
-          { id: "basemap", type: "raster", source: "openstreetmap", paint: { "raster-saturation": -1, "raster-opacity": 0.6, "raster-contrast": -0.22, "raster-brightness-max": 0.94 } },
+          { id: "basemap", type: "raster", source: "openstreetmap", paint: { "raster-saturation": -1, "raster-opacity": 0.42, "raster-contrast": -0.28, "raster-brightness-max": 0.96 } },
+          {
+            id: "wind-sites",
+            type: "fill",
+            source: "wind-sites",
+            paint: {
+              "fill-color": ["interpolate", ["linear"], ["get", "capacity_factor"], 0.314, COLOR_LOW, 0.545, COLOR_HIGH],
+              "fill-opacity": ["interpolate", ["linear"], ["zoom"], 4.5, 0.94, 9, 0.82],
+              "fill-outline-color": "rgba(243, 240, 230, 0.72)",
+            },
+          },
         ],
       },
       bounds: KANSAS_BOUNDS,
@@ -164,37 +175,23 @@ export default function WindMap() {
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right");
 
-    map.on("load", () => {
-      map.addSource("wind-sites", { type: "geojson", data: gridData });
-      map.addLayer({
-        id: "wind-sites",
-        type: "fill",
-        source: "wind-sites",
-        paint: {
-          "fill-color": ["interpolate", ["linear"], ["get", "capacity_factor"], 0.314, COLOR_LOW, 0.545, COLOR_HIGH],
-          "fill-opacity": ["interpolate", ["linear"], ["zoom"], 4.5, 0.9, 9, 0.76],
-          "fill-outline-color": "rgba(243, 240, 230, 0.58)",
-        },
-      });
+    const showPopup = (event: maplibregl.MapMouseEvent & { features?: Feature[] }) => {
+      const feature = event.features?.[0];
+      if (!feature?.properties) return;
+      const properties = feature.properties as WindProperties;
+      popupRef.current?.remove();
+      popupRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, maxWidth: "260px" })
+        .setLngLat(event.lngLat)
+        .setDOMContent(popupContent(properties))
+        .addTo(map);
+    };
 
-      const showPopup = (event: maplibregl.MapMouseEvent & { features?: Feature[] }) => {
-        const feature = event.features?.[0];
-        if (!feature?.properties) return;
-        const properties = feature.properties as WindProperties;
-        popupRef.current?.remove();
-        popupRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, maxWidth: "260px" })
-          .setLngLat(event.lngLat)
-          .setDOMContent(popupContent(properties))
-          .addTo(map);
-      };
-
-      map.on("mousemove", "wind-sites", showPopup);
-      map.on("click", "wind-sites", showPopup);
-      map.on("mouseenter", "wind-sites", () => { map.getCanvas().style.cursor = "pointer"; });
-      map.on("mouseleave", "wind-sites", () => {
-        map.getCanvas().style.cursor = "";
-        popupRef.current?.remove();
-      });
+    map.on("mousemove", "wind-sites", showPopup);
+    map.on("click", "wind-sites", showPopup);
+    map.on("mouseenter", "wind-sites", () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", "wind-sites", () => {
+      map.getCanvas().style.cursor = "";
+      popupRef.current?.remove();
     });
 
     return () => {
