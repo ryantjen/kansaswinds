@@ -26,6 +26,20 @@ The map colors sites by modeled `capacity_factor` or average `wind_speed_mps`. E
 - Coverage used here: the 4,154 source rows whose `State` value is `Kansas`
 - Important: values are modeled site estimates, not measurements or guaranteed project output.
 
+## Modeled annual output
+
+The site calculates the Kansas technical-resource estimate as:
+
+```text
+annual MWh = sum(site capacity MW × site capacity factor × 8,760 hours)
+```
+
+For the 4,154 Kansas records, this produces 61,230 MW of modeled capacity, a 45.84% capacity-weighted factor, 28,067 MW of average output, and 245.87 TWh of annual energy. The calculation uses the dataset's `capacity_mw` directly and does not multiply by `fraction_of_usable_area` a second time.
+
+The map and calculations include all 4,154 modeled Kansas sites. The site does not apply additional protected-land, residential-setback, high-slope, or minimum-capacity-factor exclusions.
+
+For context, the U.S. Energy Information Administration reports 41,258,210 MWh (41.258 TWh) of Kansas retail electricity sales in 2024. The modeled annual wind output is about 5.96 times that benchmark: https://www.eia.gov/electricity/state/Kansas/
+
 Reserved data paths:
 
 - `public/data/transmission.geojson`

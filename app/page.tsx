@@ -1,4 +1,3 @@
-import ConstraintToggle from "@/components/ConstraintToggle";
 import MetricCard from "@/components/MetricCard";
 import PotentialCalculator from "@/components/PotentialCalculator";
 import WindMap from "@/components/WindMap";
@@ -30,6 +29,7 @@ export default function Home() {
       <section aria-labelledby="map-heading" className="px-3 pb-24 md:px-6">
         <h2 id="map-heading" className="sr-only">Kansas wind capacity factor map</h2>
         <WindMap />
+        <PotentialCalculator />
       </section>
 
       <section className="border-y border-ink/15 bg-white/35 px-5 py-24 md:px-10">
@@ -44,8 +44,6 @@ export default function Home() {
               <MetricCard label="Mapped metric" value="Capacity factor" />
               <MetricCard label="Geography" value="Kansas" />
             </div>
-            <ConstraintToggle disabled />
-            <PotentialCalculator />
           </div>
         </div>
       </section>
