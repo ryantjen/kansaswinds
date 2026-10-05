@@ -52,3 +52,12 @@ Reserved data paths:
 - Hourly dispatch
 - Storage
 - Transmission expansion
+
+## PyPSA-USA research baseline
+
+The separate, reproducible power-system baseline is documented in
+[`pypsa/README.md`](pypsa/README.md). It builds an unsolved 2019 Eastern
+Interconnection network first; it does not yet add hypothetical wind,
+transmission expansion, or congestion optimization. The full data-model build
+is intended for a 32–64 GB Linux machine, with 64 GB strongly recommended.
+Build instructions and resource estimates are kept in the same PyPSA README.

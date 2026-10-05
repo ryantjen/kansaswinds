@@ -1,0 +1,3 @@
+[submodule "external/pypsa-usa"]
+	path = external/pypsa-usa
+	url = https://github.com/PyPSA/pypsa-usa.git

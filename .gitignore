@@ -5,3 +5,8 @@ out/
 .env*.local
 *.tsbuildinfo
 npm-debug.log*
+.tools/
+__pycache__/
+*.py[cod]
+gurobi.lic
+.DS_Store
