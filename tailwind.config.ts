@@ -9,6 +9,7 @@ const config: Config = {
         prairie: "#f3f0e6",
         sage: "#7d9587",
         wind: "#164e45",
+        grid: "#9a523c",
       },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],

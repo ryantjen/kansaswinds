@@ -45,6 +45,26 @@ Reserved data paths:
 - `public/data/transmission.geojson`
 - `public/data/exclusions.geojson`
 
+## Grid context map
+
+The second map reads `public/data/kansas_grid.geojson`, a compact browser-ready
+export of the unsolved PyPSA-USA Kansas baseline. It contains the two Kansas
+ReEDS planning zones, the neighboring zones connected to them, ten modeled
+transfer interfaces, and eleven aggregated generation centers. Wind and solar
+are always included; conventional generation is included at 250 MW or larger.
+
+Regenerate the file after refreshing the baseline analysis outputs with:
+
+```bash
+npm run data:grid
+```
+
+Interface width represents modeled directional transfer capacity, not a
+surveyed physical transmission line or observed power flow. Generator markers
+are regional aggregates at zone centers, not individual plant coordinates.
+Annual generation and daily interface flow remain unavailable until the
+network is solved or historical observations are joined.
+
 ## Non-goals for v0.1
 
 - Grid optimization

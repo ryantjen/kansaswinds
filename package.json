@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "data:grid": "node scripts/build_grid_map_data.mjs"
   },
   "dependencies": {
     "@types/geojson": "^7946.0.16",

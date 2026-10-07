@@ -38,6 +38,11 @@ body {
 .wind-popup dt { color: rgb(255 255 255 / 62%); }
 .wind-popup dd { margin: 0; text-align: right; }
 
+.grid-popup__title { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
+.grid-popup dl { display: grid; grid-template-columns: minmax(8rem, 1fr) auto; gap: 5px 16px; margin: 0; }
+.grid-popup dt { color: rgb(255 255 255 / 62%); }
+.grid-popup dd { margin: 0; max-width: 160px; text-align: right; }
+
 @layer utilities {
   .text-balance { text-wrap: balance; }
 }
