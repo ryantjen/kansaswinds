@@ -100,6 +100,7 @@ class LauncherSettings:
     project: str = "kansas-winds"
     instance: str = "kansas-psypa"
     zone: str = "us-central1-a"
+    remote_user: str | None = None
     remote_repo: str | None = None
     environment: str = "pypsa-usa"
 

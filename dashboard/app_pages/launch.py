@@ -29,7 +29,18 @@ with st.container(border=True):
         st.metric("Project", settings.project)
         st.metric("VM", settings.instance)
         st.metric("Zone", settings.zone)
+        st.metric("Linux user", settings.remote_user or "gcloud default")
         st.metric("Remote repository", settings.remote_repo or "Not configured")
+
+    requested_user = st.text_input(
+        "Linux SSH user",
+        value=settings.remote_user or "",
+        help=(
+            "Optional. Use the Linux account that owns the existing checkout. "
+            "This is connection metadata, not a credential."
+        ),
+        key="launcher_remote_user",
+    ).strip() or None
 
     if st.button(
         "Detect VM setup",
@@ -39,8 +50,18 @@ with st.container(border=True):
     ):
         with st.spinner("Starting the VM temporarily and inspecting its setup…"):
             try:
+                probe_settings = type(settings)(
+                    project=settings.project,
+                    instance=settings.instance,
+                    zone=settings.zone,
+                    remote_user=requested_user,
+                    remote_repo=settings.remote_repo,
+                    environment=settings.environment,
+                )
+                service = LauncherService(probe_settings)
                 repositories, diagnostics = service.discover_connection()
                 st.session_state.launcher_detected_repositories = repositories
+                st.session_state.launcher_detected_user = requested_user
                 if repositories:
                     st.success(f"Found {len(repositories)} repository checkout(s). VM returned to its prior state.")
                 else:
@@ -68,7 +89,10 @@ with st.container(border=True):
         )
         if st.button("Save connection", icon=":material/save:", key="launcher_save_connection"):
             try:
-                settings = service.save_remote_repo(selected_repo)
+                settings = service.save_remote_repo(
+                    selected_repo,
+                    st.session_state.get("launcher_detected_user", requested_user),
+                )
                 st.success(f"Saved {settings.remote_repo} as the remote repository.")
                 st.rerun()
             except Exception as exc:

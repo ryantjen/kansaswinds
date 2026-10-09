@@ -405,6 +405,21 @@ class GcpAdapterTests(unittest.TestCase):
             )
 
     @patch("analysis.gcp_vm.shutil.which", return_value="gcloud")
+    def test_explicit_remote_user_is_used_for_ssh(self, _which) -> None:
+        settings = LauncherSettings(
+            remote_user="ryan_tjenalooi",
+            remote_repo="/home/ryan_tjenalooi/kansaswinds",
+        )
+        vm = GcpVm(settings, runner=self.runner)
+        vm.remote_worker(
+            "/home/ryan_tjenalooi/kansaswinds",
+            "status",
+            "reeds-job-001",
+        )
+        command = self.calls[-1]
+        self.assertIn("ryan_tjenalooi@kansas-psypa", command)
+
+    @patch("analysis.gcp_vm.shutil.which", return_value="gcloud")
     def test_ssh_failure_is_reported(self, _which) -> None:
         def failed(args, **kwargs):
             return subprocess.CompletedProcess(args, 255, "", "ssh unavailable")

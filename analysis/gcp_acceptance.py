@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 
 from analysis.gcp_vm import GcpVm
@@ -17,8 +18,20 @@ awk '/MemTotal/ {printf "memory_gib=%.1f\\n", $2/1024/1024}' /proc/meminfo
 df -BG --output=avail "$HOME" | tail -1 | tr -d ' ' | sed 's/^/free_disk=/'
 """
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--remote-user", help="Existing Linux account to inspect")
+    parser.add_argument(
+        "--repository-only",
+        action="store_true",
+        help="Skip environment and resource probes after locating the checkout",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
-    vm = GcpVm(LauncherSettings())
+    args = parse_args()
+    vm = GcpVm(LauncherSettings(remote_user=args.remote_user))
     initial = vm.describe()
     started_here = initial.status != "RUNNING"
     report: dict[str, object] = {
@@ -35,16 +48,18 @@ def main() -> None:
             vm.install_bootstrap_lease(30)
         repositories = vm.detect_remote_repositories()
         report["repositories"] = repositories
-        try:
-            report["environment"] = vm.inspect_environment()
-        except Exception as exc:
-            errors["environment"] = f"{type(exc).__name__}: {exc}"
+        if not args.repository_only:
+            try:
+                report["environment"] = vm.inspect_environment()
+            except Exception as exc:
+                errors["environment"] = f"{type(exc).__name__}: {exc}"
         if repositories:
             report["repository"] = vm.remote_git_state(repositories[0])
-        try:
-            report["resource_and_shutdown_probe"] = vm._ssh_read(RESOURCE_PROBE)
-        except Exception as exc:
-            errors["resource_and_shutdown_probe"] = f"{type(exc).__name__}: {exc}"
+        if not args.repository_only:
+            try:
+                report["resource_and_shutdown_probe"] = vm._ssh_read(RESOURCE_PROBE)
+            except Exception as exc:
+                errors["resource_and_shutdown_probe"] = f"{type(exc).__name__}: {exc}"
     finally:
         if started_here:
             report["final_vm"] = vm.stop().__dict__

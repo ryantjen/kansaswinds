@@ -23,6 +23,7 @@ from analysis.launcher import LauncherSettings, validate_commit, validate_job_id
 
 SAFE_CLOUD_VALUE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 SAFE_ENVIRONMENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
+SAFE_REMOTE_USER = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 REMOTE_ACTIONS = {"preflight", "submit", "status", "extend-lease", "diagnostics"}
 
 
@@ -60,6 +61,12 @@ def validate_environment(value: str) -> str:
     return value
 
 
+def validate_remote_user(value: str | None) -> str | None:
+    if value is not None and not SAFE_REMOTE_USER.fullmatch(value):
+        raise ValueError(f"Invalid remote Linux user: {value!r}")
+    return value
+
+
 class GcpVm:
     def __init__(
         self,
@@ -72,6 +79,12 @@ class GcpVm:
         validate_cloud_value(settings.instance, "instance")
         validate_cloud_value(settings.zone, "zone")
         validate_environment(settings.environment)
+        validate_remote_user(settings.remote_user)
+
+    def _ssh_target(self) -> str:
+        if self.settings.remote_user:
+            return f"{self.settings.remote_user}@{self.settings.instance}"
+        return self.settings.instance
 
     def _run(
         self,
@@ -207,7 +220,7 @@ class GcpVm:
                 "gcloud",
                 "compute",
                 "ssh",
-                self.settings.instance,
+                self._ssh_target(),
                 "--project",
                 self.settings.project,
                 "--zone",
@@ -292,17 +305,21 @@ class GcpVm:
             raise GcloudError("Solver environment is missing PyPSA, HiGHS, or Snakemake.")
         return {"name": environment, "versions": versions}
 
-    def remote_git_state(self, remote_repo: str) -> dict[str, str | bool]:
+    def remote_git_state(self, remote_repo: str) -> dict[str, Any]:
         repo = validate_remote_repo(remote_repo)
         script = (
             f"cd -- {shlex.quote(repo)} && "
-            "printf '%s\\n' \"$(git rev-parse HEAD)\" "
-            "\"$(git status --porcelain --untracked-files=no | wc -l)\""
+            "git rev-parse HEAD && git status --porcelain --untracked-files=no"
         )
         lines = self._ssh_read(script).splitlines()
-        if len(lines) != 2:
+        if not lines:
             raise GcloudError("Could not read the remote Git state.")
-        return {"commit": lines[0].strip(), "clean": lines[1].strip() == "0"}
+        dirty_files = [line.rstrip() for line in lines[1:] if line.strip()]
+        return {
+            "commit": lines[0].strip(),
+            "clean": not dirty_files,
+            "dirty_files": dirty_files,
+        }
 
     def prepare_remote_commit(self, remote_repo: str, commit: str) -> None:
         repo = validate_remote_repo(remote_repo)
@@ -335,7 +352,7 @@ class GcpVm:
                 "scp",
                 "--recurse",
                 str(local_directory),
-                f"{self.settings.instance}:{repo}/remote_jobs/",
+                f"{self._ssh_target()}:{repo}/remote_jobs/",
                 "--project",
                 self.settings.project,
                 "--zone",
@@ -398,7 +415,7 @@ class GcpVm:
                 "compute",
                 "scp",
                 "--recurse",
-                f"{self.settings.instance}:{repo}/results/runs/{job_id}",
+                f"{self._ssh_target()}:{repo}/results/runs/{job_id}",
                 str(destination),
                 "--project",
                 self.settings.project,

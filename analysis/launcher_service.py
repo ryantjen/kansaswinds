@@ -66,11 +66,14 @@ class LauncherService:
             if started_here:
                 self.vm.stop()
 
-    def save_remote_repo(self, remote_repo: str) -> LauncherSettings:
+    def save_remote_repo(
+        self, remote_repo: str, remote_user: str | None = None
+    ) -> LauncherSettings:
         value = LauncherSettings(
             project=self.settings.project,
             instance=self.settings.instance,
             zone=self.settings.zone,
+            remote_user=remote_user,
             remote_repo=validate_remote_repo(remote_repo),
             environment=self.settings.environment,
         )
@@ -120,6 +123,7 @@ class LauncherService:
                     "project": self.settings.project,
                     "instance": self.settings.instance,
                     "zone": self.settings.zone,
+                    "ssh_user": self.settings.remote_user,
                 },
             },
         )

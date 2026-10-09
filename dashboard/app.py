@@ -16,6 +16,7 @@ st.set_page_config(page_title="Kansas wind experiments", layout="wide")
 
 st.session_state.setdefault("launcher_preview", None)
 st.session_state.setdefault("launcher_detected_repositories", [])
+st.session_state.setdefault("launcher_detected_user", None)
 st.session_state.setdefault("selected_job_id", None)
 
 page = st.navigation(
