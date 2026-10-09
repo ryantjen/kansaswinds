@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import unittest
+import os
+import subprocess
+import sys
+import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -29,6 +33,28 @@ def clean_git_state() -> dict:
 
 
 class DashboardAppTests(unittest.TestCase):
+    def test_entrypoint_imports_pages_outside_repository_working_directory(self) -> None:
+        app_path = REPO_ROOT / "dashboard" / "app.py"
+        code = (
+            "from streamlit.testing.v1 import AppTest; "
+            f"app=AppTest.from_file({str(app_path)!r}, default_timeout=15).run(); "
+            "app.switch_page('app_pages/jobs.py').run(); "
+            "assert not app.exception, [item.value for item in app.exception]"
+        )
+        environment = os.environ.copy()
+        environment.pop("PYTHONPATH", None)
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.run(
+                [sys.executable, "-c", code],
+                cwd=directory,
+                env=environment,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_results_page_compares_two_explicitly_synthetic_runs(self) -> None:
         app = AppTest.from_file(
             str(REPO_ROOT / "dashboard" / "app_pages" / "results.py"),
