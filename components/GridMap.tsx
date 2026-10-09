@@ -8,7 +8,7 @@ const DATA_URL = "/data/kansas_grid.geojson";
 const GRID_BOUNDS: [[number, number], [number, number]] = [[-103.35, 35.25], [-93.2, 41.45]];
 
 type GridProperties = {
-  kind: "zone" | "interface" | "generator";
+  kind: "zone" | "interface" | "generator" | "network_line" | "network_node";
   [key: string]: string | number | boolean | null;
 };
 type GridData = FeatureCollection<Geometry, GridProperties>;
@@ -16,6 +16,12 @@ type GridData = FeatureCollection<Geometry, GridProperties>;
 function formatMw(value: unknown) {
   return typeof value === "number"
     ? `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value)} MW`
+    : "Not available";
+}
+
+function formatKm(value: unknown) {
+  return typeof value === "number"
+    ? `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value)} km`
     : "Not available";
 }
 
@@ -37,7 +43,27 @@ function popupContent(properties: GridProperties) {
   const title = document.createElement("p");
   title.className = "grid-popup__title";
 
-  if (properties.kind === "generator") {
+  if (properties.kind === "network_line") {
+    title.textContent = `${properties.voltage_kv} kV AC branch`;
+    root.appendChild(title);
+    addRows(root, [
+      ["Thermal capacity", formatMw(properties.capacity_mw)],
+      ["Modeled length", formatKm(properties.length_km)],
+      ["Endpoints", `${properties.bus0} → ${properties.bus1}`],
+      ["Annual power flow", "Requires solved hourly dispatch"],
+      ["Topology", "Synthetic / provisional"],
+    ]);
+  } else if (properties.kind === "network_node") {
+    title.textContent = `${properties.max_voltage_kv} kV network node`;
+    root.appendChild(title);
+    addRows(root, [
+      ["Connected branches", String(properties.branch_count)],
+      ["County ID", String(properties.counties || "Not available")],
+      ["State", String(properties.states || "Not available")],
+      ["Bus IDs", String(properties.bus_ids)],
+      ["Topology", "Synthetic / provisional"],
+    ]);
+  } else if (properties.kind === "generator") {
     title.textContent = `${properties.fuel} generation center`;
     root.appendChild(title);
     addRows(root, [
@@ -74,6 +100,7 @@ export default function GridMap() {
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const [data, setData] = useState<GridData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [topologyView, setTopologyView] = useState<"physical" | "planning">("physical");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -98,9 +125,13 @@ export default function GridMap() {
     if (!data) return null;
     const generators = data.features.filter((feature) => feature.properties?.kind === "generator");
     const interfaces = data.features.filter((feature) => feature.properties?.kind === "interface");
+    const networkLines = data.features.filter((feature) => feature.properties?.kind === "network_line");
+    const networkNodes = data.features.filter((feature) => feature.properties?.kind === "network_node");
     return {
       generators: generators.length,
       interfaces: interfaces.length,
+      networkLines: networkLines.length,
+      networkNodes: networkNodes.length,
       capacityMw: generators.reduce((sum, feature) => sum + Number(feature.properties?.capacity_mw ?? 0), 0),
     };
   }, [data]);
@@ -150,6 +181,7 @@ export default function GridMap() {
             type: "line",
             source: "grid",
             filter: ["==", ["get", "kind"], "interface"],
+            layout: { visibility: "none" },
             paint: { "line-color": "rgba(0,0,0,0)", "line-width": 16 },
           },
           {
@@ -157,15 +189,71 @@ export default function GridMap() {
             type: "line",
             source: "grid",
             filter: ["==", ["get", "kind"], "interface"],
+            layout: { visibility: "none" },
             paint: {
               "line-color": "#9a523c",
               "line-opacity": 0.78,
+              "line-dasharray": [1.5, 1.15],
               "line-width": [
                 "interpolate", ["linear"], ["get", "display_capacity_mw"],
                 40, 1.4,
                 1000, 2.7,
                 5500, 6,
               ],
+            },
+          },
+          {
+            id: "network-line-hit",
+            type: "line",
+            source: "grid",
+            filter: ["==", ["get", "kind"], "network_line"],
+            paint: { "line-color": "rgba(0,0,0,0)", "line-width": 10 },
+          },
+          {
+            id: "network-lines",
+            type: "line",
+            source: "grid",
+            filter: ["==", ["get", "kind"], "network_line"],
+            paint: {
+              "line-color": [
+                "interpolate", ["linear"], ["get", "voltage_kv"],
+                115, "#77837e",
+                161, "#426d67",
+                345, "#c27931",
+                500, "#8f3d32",
+              ],
+              "line-opacity": 0.84,
+              "line-width": [
+                "interpolate", ["linear"], ["get", "voltage_kv"],
+                115, 0.75,
+                161, 1.2,
+                345, 2.25,
+                500, 3.2,
+              ],
+            },
+          },
+          {
+            id: "network-node-halo",
+            type: "circle",
+            source: "grid",
+            minzoom: 5.6,
+            filter: ["==", ["get", "kind"], "network_node"],
+            paint: {
+              "circle-radius": ["interpolate", ["linear"], ["get", "branch_count"], 1, 2.3, 8, 5.2],
+              "circle-color": "#f3f0e6",
+              "circle-opacity": 0.94,
+            },
+          },
+          {
+            id: "network-nodes",
+            type: "circle",
+            source: "grid",
+            minzoom: 5.6,
+            filter: ["==", ["get", "kind"], "network_node"],
+            paint: {
+              "circle-radius": ["interpolate", ["linear"], ["get", "branch_count"], 1, 1.35, 8, 3.8],
+              "circle-color": "#17201d",
+              "circle-opacity": 0.82,
             },
           },
           {
@@ -225,7 +313,7 @@ export default function GridMap() {
         .addTo(map);
     };
 
-    for (const layer of ["interface-hit", "generators"]) {
+    for (const layer of ["interface-hit", "network-line-hit", "network-nodes", "generators"]) {
       map.on("mousemove", layer, showPopup);
       map.on("click", layer, showPopup);
       map.on("mouseenter", layer, () => { map.getCanvas().style.cursor = "pointer"; });
@@ -242,32 +330,63 @@ export default function GridMap() {
     };
   }, [data]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const applyVisibility = () => {
+      const physicalVisibility = topologyView === "physical" ? "visible" : "none";
+      const planningVisibility = topologyView === "planning" ? "visible" : "none";
+      for (const layer of ["network-line-hit", "network-lines", "network-node-halo", "network-nodes"]) {
+        if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", physicalVisibility);
+      }
+      for (const layer of ["interface-hit", "interfaces"]) {
+        if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", planningVisibility);
+      }
+    };
+    if (map.loaded()) applyVisibility();
+    else map.once("load", applyVisibility);
+  }, [data, topologyView]);
+
   return (
     <div className="relative h-[66vh] min-h-[560px] overflow-hidden rounded-2xl border border-ink/15 bg-[#dde6e2] shadow-[0_20px_70px_rgba(23,32,29,0.08)]">
-      <div ref={containerRef} className="absolute inset-0" aria-label="Movable map of Kansas generation centers and regional transmission interfaces" />
+      <div ref={containerRef} className="absolute inset-0" aria-label="Movable map of Kansas high-voltage network topology, generation centers, and regional transmission interfaces" />
 
-      <div className="pointer-events-none absolute left-5 top-5 z-10 max-w-[calc(100%-2.5rem)] rounded-xl bg-prairie/90 px-4 py-3 shadow-sm backdrop-blur md:left-8 md:top-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-grid">2019 · unsolved planning baseline</p>
-        <p className="mt-1 font-serif text-xl">Generation and transfer capacity</p>
-        <p className="mt-1 text-xs text-ink/55">Hover for details · drag to move · scroll or pinch to zoom</p>
+      <div className="pointer-events-auto absolute left-5 top-5 z-10 max-w-[calc(100%-2.5rem)] rounded-xl bg-prairie/90 px-4 py-3 shadow-sm backdrop-blur md:left-8 md:top-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-grid">2019 · unsolved grid baseline</p>
+        <p className="mt-1 font-serif text-xl">Kansas transmission topology</p>
+        <div className="mt-3 flex w-fit rounded-lg border border-ink/15 bg-white/45 p-1 text-xs font-semibold">
+          <button type="button" onClick={() => setTopologyView("physical")} aria-pressed={topologyView === "physical"} className={`rounded-md px-3 py-1.5 transition ${topologyView === "physical" ? "bg-ink text-white" : "text-ink/60 hover:text-ink"}`}>115 kV+ network</button>
+          <button type="button" onClick={() => setTopologyView("planning")} aria-pressed={topologyView === "planning"} className={`rounded-md px-3 py-1.5 transition ${topologyView === "planning" ? "bg-ink text-white" : "text-ink/60 hover:text-ink"}`}>Planning interfaces</button>
+        </div>
+        <p className="mt-2 text-xs text-ink/55">Hover for details · drag to move · scroll or pinch to zoom</p>
       </div>
 
       <div className="pointer-events-none absolute right-5 top-5 z-10 hidden rounded-xl bg-prairie/90 px-4 py-3 text-xs shadow-sm backdrop-blur sm:block md:right-8 md:top-8">
-        <p className="mb-2 font-semibold uppercase tracking-[0.14em] text-ink/55">Generation centers</p>
-        <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1.5 text-ink/70">
+        <p className="mb-2 font-semibold uppercase tracking-[0.14em] text-ink/55">{topologyView === "physical" ? "Nominal voltage" : "Planning layer"}</p>
+        {topologyView === "physical" ? <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1.5 text-ink/70">
+          <span className="h-0.5 w-4 bg-[#77837e]" /><span>115 kV</span>
+          <span className="h-0.5 w-4 bg-[#426d67]" /><span>161 kV</span>
+          <span className="h-0.5 w-4 bg-[#c27931]" /><span>345 kV</span>
+          <span className="h-0.5 w-4 bg-[#8f3d32]" /><span>500 kV</span>
+        </div> : <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1.5 text-ink/70">
           <span className="h-2.5 w-2.5 rounded-full bg-[#177467]" /><span>Wind</span>
           <span className="h-2.5 w-2.5 rounded-full bg-[#d19a28]" /><span>Solar</span>
           <span className="h-2.5 w-2.5 rounded-full bg-[#3e4a46]" /><span>Major conventional</span>
           <span className="h-0.5 w-4 bg-[#9a523c]" /><span>Transfer interface</span>
-        </div>
+        </div>}
       </div>
 
       {!data && !error && <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center bg-[#dde6e2] text-sm text-ink/55">Loading grid context…</div>}
       {error && <div className="absolute inset-0 z-30 grid place-items-center bg-[#dde6e2] px-6 text-center"><div className="rounded-xl bg-prairie p-6"><p className="font-serif text-2xl">Grid data unavailable</p><p className="mt-2 text-sm text-ink/65">{error}</p></div></div>}
 
-      {stats && <div className="pointer-events-none absolute bottom-7 left-5 z-10 hidden rounded-lg bg-prairie/90 px-4 py-3 text-xs text-ink/60 backdrop-blur sm:block md:left-8">
-        <p><span className="font-semibold text-ink">{stats.interfaces} interfaces</span><span className="ml-3">{stats.generators} generation centers</span><span className="ml-3">{(stats.capacityMw / 1000).toFixed(1)} GW mapped</span></p>
-        <p className="mt-1.5">Line width shows directional transfer limit, not observed flow.</p>
+      {stats && <div className="pointer-events-none absolute bottom-7 left-5 z-10 hidden max-w-2xl rounded-lg bg-prairie/90 px-4 py-3 text-xs text-ink/60 backdrop-blur sm:block md:left-8">
+        {topologyView === "physical" ? <>
+          <p><span className="font-semibold text-ink">{stats.networkLines.toLocaleString()} AC branches</span><span className="ml-3">{stats.networkNodes.toLocaleString()} mapped nodes</span><span className="ml-3">115 kV and above</span></p>
+          <p className="mt-1.5">Synthetic, provisional topology; line width/color shows voltage, not observed flow.</p>
+        </> : <>
+          <p><span className="font-semibold text-ink">{stats.interfaces} interfaces</span><span className="ml-3">{stats.generators} generation centers</span><span className="ml-3">{(stats.capacityMw / 1000).toFixed(1)} GW mapped</span></p>
+          <p className="mt-1.5">Dashed-line width shows directional transfer limit, not observed flow.</p>
+        </>}
       </div>}
     </div>
   );

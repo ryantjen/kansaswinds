@@ -1,0 +1,16 @@
+{
+  "objective": 1200000000.0,
+  "snapshots": 4,
+  "weighted_hours": 4.0,
+  "annual_generation_mwh": 1500.0,
+  "annual_load_mwh": 1500.0,
+  "kansas_annual_generation_mwh": 860.0,
+  "kansas_annual_load_mwh": 760.0,
+  "kansas_new_wind_capacity_mw": 500.0,
+  "kansas_wind_generation_mwh": 610.0,
+  "kansas_wind_curtailment_mwh": 90.0,
+  "max_branch_utilization": 0.95,
+  "constraint_violation_count": 0,
+  "model_status": "synthetic example — no optimization was run"
+}
+

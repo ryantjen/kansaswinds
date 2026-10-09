@@ -43,15 +43,41 @@ export default function Home() {
           </div>
           <div className="max-w-2xl text-sm leading-6 text-ink/65 lg:justify-self-end md:text-base md:leading-7">
             <p>
-              This planning-scale view maps Kansas generation and the regional interfaces that carry power into and out of the state. It is designed to reveal candidate bottlenecks, not individual transmission towers.
+              The topology view now exposes the provisional 115 kV-and-above AC network that touches Kansas. Switch to planning interfaces to see the coarser transfer limits used by the current PyPSA baseline.
             </p>
             <p className="mt-3">
-              The PyPSA-USA baseline has not been dispatched, so interface limits are shown without invented power-flow or annual-generation values.
+              The detailed branches are synthetic rather than surveyed infrastructure. The baseline has not been dispatched, so capacities are shown without invented power-flow or annual-generation values.
             </p>
           </div>
         </div>
         <div className="mx-auto max-w-[1800px]">
           <GridMap />
+        </div>
+
+        <div className="mx-auto mt-10 grid max-w-[1600px] gap-px overflow-hidden rounded-2xl border border-ink/15 bg-ink/15 md:grid-cols-2 xl:grid-cols-4">
+          <article className="bg-prairie p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-grid">1 · Actual generation</p>
+            <h3 className="mt-3 font-serif text-2xl">Join EIA-923 by plant.</h3>
+            <p className="mt-3 text-sm leading-6 text-ink/65">Use annual plant and prime-mover net generation, then attach EIA-860 coordinates. This is observed MWh, not a dispatch estimate.</p>
+            <a className="mt-4 inline-block text-sm font-semibold text-wind underline decoration-wind/30 underline-offset-4" href="https://www.eia.gov/electricity/data/eia923/">EIA-923 detailed data</a>
+          </article>
+          <article className="bg-prairie p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-grid">2 · Actual grid movement</p>
+            <h3 className="mt-3 font-serif text-2xl">Use EIA-930 for area ties.</h3>
+            <p className="mt-3 text-sm leading-6 text-ink/65">EIA-930 provides hourly interchange between balancing authorities. It does not reveal flow on individual AC branches.</p>
+            <a className="mt-4 inline-block text-sm font-semibold text-wind underline decoration-wind/30 underline-offset-4" href="https://www.eia.gov/opendata/browser/electricity/rto/interchange-data">EIA hourly interchange</a>
+          </article>
+          <article className="bg-prairie p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-grid">3 · Observed congestion</p>
+            <h3 className="mt-3 font-serif text-2xl">Ingest SPP market constraints.</h3>
+            <p className="mt-3 text-sm leading-6 text-ink/65">Binding constraints, effective limits, and the LMP congestion component identify recurring constrained facilities and price separation.</p>
+            <a className="mt-4 inline-block text-sm font-semibold text-wind underline decoration-wind/30 underline-offset-4" href="https://portal.spp.org/groups/real-time-balancing-market">SPP real-time market data</a>
+          </article>
+          <article className="bg-prairie p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-grid">4 · Modeled branch flow</p>
+            <h3 className="mt-3 font-serif text-2xl">Solve the hourly network.</h3>
+            <p className="mt-3 text-sm leading-6 text-ink/65">For each branch, aggregate hourly MW into net and absolute MWh, utilization, congested hours, and shadow price. That makes scenario comparisons possible.</p>
+          </article>
         </div>
       </section>
 
@@ -62,9 +88,9 @@ export default function Home() {
             <h2 className="font-serif text-4xl tracking-tight md:text-5xl">A first screen for transmission pressure.</h2>
           </div>
           <div className="space-y-5 text-ink/70">
-            <p className="leading-7">Compare high-quality wind areas above with the size and directionality of nearby planning interfaces below. Actual congestion requires an optimized dispatch scenario and is not claimed here.</p>
+            <p className="leading-7">Trace high-quality wind areas against the 115 kV+ network, then switch to the planning interfaces that constrain regional transfers. Actual congestion still requires SPP market observations or an optimized hourly dispatch and is not claimed here.</p>
             <div className="grid gap-4 sm:grid-cols-2">
-              <MetricCard label="Grid resolution" value="2 Kansas zones" />
+              <MetricCard label="Topology" value="115 kV+ branches" />
               <MetricCard label="Model state" value="Unsolved baseline" />
             </div>
           </div>

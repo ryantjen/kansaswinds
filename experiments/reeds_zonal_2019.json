@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "reeds-zonal-2019",
+  "label": "2019 ReEDS zonal capacity expansion",
+  "description": "Full Eastern Interconnection solve at the coarse ReEDS planning-zone resolution. Kansas siting results distinguish only p52 (west) and p53 (east).",
+  "data_classification": "model_output",
+  "spatial_resolution": {
+    "topology": "reeds",
+    "boundary": "reeds_zone",
+    "clusters": 98,
+    "kansas_zones": [
+      "p52",
+      "p53"
+    ]
+  },
+  "parameters": {
+    "planning_year": 2019,
+    "weather_year": 2019,
+    "snapshot_count": 8760,
+    "wind_carrier": "onwind",
+    "wind_capacity_choice": "endogenous within PyPSA-USA capacity expansion",
+    "transmission_expansion": false,
+    "interpretation": "Compare zone-level build and dispatch in p52 versus p53; do not infer a county, substation, or parcel."
+  },
+  "launcher": {
+    "enabled": true,
+    "run_sizes": [
+      "smoke",
+      "pilot",
+      "production"
+    ]
+  },
+  "workflow": {
+    "working_directory": "external/pypsa-usa/workflow",
+    "config_file": "pypsa/config.kansas-baseline.yaml",
+    "target": "results/KansasBaseline/eastern/networks/elec_s98_c98_ec_lv1.0__E.nc",
+    "solved_network": "external/pypsa-usa/workflow/results/KansasBaseline/eastern/networks/elec_s98_c98_ec_lv1.0__E.nc",
+    "cores": 1
+  },
+  "solver": {
+    "name": "highs",
+    "option_set": "highs-default",
+    "source": "pypsa/config.kansas-baseline.yaml"
+  }
+}

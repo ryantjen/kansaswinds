@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const resultsDir = join(root, "results", "kansas");
 const resourcesDir = join(root, "external", "pypsa-usa", "workflow", "resources", "KansasBaseline", "eastern");
+const MIN_TOPOLOGY_VOLTAGE_KV = 115;
 
 function parseCsv(text) {
   const rows = [];
@@ -68,10 +69,98 @@ function polygonCenter(geometry) {
   ];
 }
 
+function parseLineString(wkt) {
+  const match = /^LINESTRING\s*(?:Z\s*)?\((.+)\)$/i.exec(wkt?.trim() ?? "");
+  if (!match) return null;
+  const coordinates = match[1].split(",").map((pair) => {
+    const [x, y] = pair.trim().split(/\s+/).map(Number);
+    return [x, y];
+  });
+  return coordinates.length >= 2 && coordinates.every(([x, y]) => Number.isFinite(x) && Number.isFinite(y))
+    ? coordinates
+    : null;
+}
+
 const transmission = readCsv(join(resultsDir, "transmission_touching_kansas.csv"));
 const generators = readCsv(join(resultsDir, "generators.csv"));
 const buses = readCsv(join(resultsDir, "buses.csv"));
 const reeds = JSON.parse(readFileSync(join(resourcesDir, "Geospatial", "reeds_shapes.geojson"), "utf8"));
+const detailedBuses = readCsv(join(resourcesDir, "bus_gis.csv"));
+const detailedLines = readCsv(join(resourcesDir, "lines_gis.csv"));
+
+const detailedBusById = new Map(detailedBuses.map((bus) => [bus.Bus, bus]));
+const topologyLines = detailedLines.filter((line) => {
+  const bus0 = detailedBusById.get(line.bus0);
+  const bus1 = detailedBusById.get(line.bus1);
+  const voltage = number(line.v_nom) ?? 0;
+  const length = number(line.length) ?? 0;
+  return voltage >= MIN_TOPOLOGY_VOLTAGE_KV
+    && length > 0.05
+    && (bus0?.reeds_state === "KS" || bus1?.reeds_state === "KS")
+    && parseLineString(line.WKT_geometry);
+});
+
+const topologyLineFeatures = topologyLines.map((line) => {
+  const bus0 = detailedBusById.get(line.bus0);
+  const bus1 = detailedBusById.get(line.bus1);
+  return {
+    type: "Feature",
+    properties: {
+      kind: "network_line",
+      line_id: line.Line,
+      bus0: line.bus0,
+      bus1: line.bus1,
+      voltage_kv: number(line.v_nom),
+      capacity_mw: number(line.s_nom),
+      length_km: number(line.length),
+      state0: bus0?.reeds_state ?? null,
+      state1: bus1?.reeds_state ?? null,
+      kansas_internal: bus0?.reeds_state === "KS" && bus1?.reeds_state === "KS",
+      crosses_kansas_boundary: (bus0?.reeds_state === "KS") !== (bus1?.reeds_state === "KS"),
+      representation: "Provisional PyPSA-USA synthetic AC branch",
+    },
+    geometry: { type: "LineString", coordinates: parseLineString(line.WKT_geometry) },
+  };
+});
+
+const topologyNodes = new Map();
+for (const line of topologyLines) {
+  for (const busId of [line.bus0, line.bus1]) {
+    const bus = detailedBusById.get(busId);
+    const x = number(bus?.x);
+    const y = number(bus?.y);
+    if (x === null || y === null) continue;
+    const key = `${x.toFixed(5)},${y.toFixed(5)}`;
+    const existing = topologyNodes.get(key) ?? {
+      coordinates: [x, y],
+      busIds: new Set(),
+      states: new Set(),
+      counties: new Set(),
+      maxVoltageKv: 0,
+      branchCount: 0,
+    };
+    existing.busIds.add(busId);
+    if (bus.reeds_state) existing.states.add(bus.reeds_state);
+    if (bus.county) existing.counties.add(bus.county);
+    existing.maxVoltageKv = Math.max(existing.maxVoltageKv, number(line.v_nom) ?? 0);
+    existing.branchCount += 1;
+    topologyNodes.set(key, existing);
+  }
+}
+
+const topologyNodeFeatures = [...topologyNodes.values()].map((node) => ({
+  type: "Feature",
+  properties: {
+    kind: "network_node",
+    bus_ids: [...node.busIds].join(", "),
+    states: [...node.states].join(", "),
+    counties: [...node.counties].join(", "),
+    max_voltage_kv: node.maxVoltageKv,
+    branch_count: node.branchCount,
+    representation: "Co-located buses in the provisional PyPSA-USA topology",
+  },
+  geometry: { type: "Point", coordinates: node.coordinates },
+}));
 
 const interfaceRows = new Map();
 for (const row of transmission) {
@@ -224,8 +313,16 @@ const output = {
     model_year: 2019,
     model_status: "Unsolved PyPSA-USA input data model",
     spatial_resolution: "98 ReEDS planning zones",
+    topology_status: "Provisional 115 kV+ synthetic AC network; not surveyed infrastructure",
+    topology_voltage_floor_kv: MIN_TOPOLOGY_VOLTAGE_KV,
   },
-  features: [...zoneFeatures, ...interfaceFeatures, ...generatorFeatures],
+  features: [
+    ...zoneFeatures,
+    ...interfaceFeatures,
+    ...topologyLineFeatures,
+    ...topologyNodeFeatures,
+    ...generatorFeatures,
+  ],
 };
 
 const outputPath = join(root, "public", "data", "kansas_grid.geojson");

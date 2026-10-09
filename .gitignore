@@ -6,7 +6,16 @@ out/
 *.tsbuildinfo
 npm-debug.log*
 .tools/
+.kansaswinds/
+.streamlit/secrets.toml
+/remote_jobs/
 __pycache__/
 *.py[cod]
 gurobi.lic
 .DS_Store
+
+# Keep only small, explicitly labeled dashboard examples under version control.
+/results/*
+!/results/README.md
+!/results/examples/
+!/results/examples/**

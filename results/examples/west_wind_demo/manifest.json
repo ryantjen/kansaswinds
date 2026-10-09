@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "run_id": "west-wind-demo",
+  "experiment_id": "synthetic-reeds-comparison",
+  "label": "Synthetic west-zone build",
+  "description": "Dashboard demonstration only: an invented 500 MW wind build in p52.",
+  "status": "completed",
+  "data_classification": "synthetic_example",
+  "is_example": true,
+  "created_at": "2000-01-01T00:00:00+00:00",
+  "spatial_resolution": {
+    "topology": "reeds",
+    "boundary": "reeds_zone",
+    "kansas_zones": ["p52", "p53"]
+  },
+  "solver": {
+    "name": null,
+    "status": "not run — synthetic values"
+  }
+}
+

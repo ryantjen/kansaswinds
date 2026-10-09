@@ -1,0 +1,4 @@
+component,branch,bus0,bus1,capacity_mw,net_energy_mwh,absolute_throughput_mwh,max_absolute_flow_mw,max_utilization,hours_at_or_above_90pct,hours_at_or_above_95pct,congestion_rent
+Link,p52||p53_fwd,p52,p53,400,900,900,380,0.95,1,1,4500
+Link,p53||p54_fwd,p53,p54,500,300,300,250,0.5,0,0,800
+

@@ -1,0 +1,4 @@
+generator,bus,carrier,existing_capacity_mw,optimized_capacity_mw,new_capacity_mw,annual_generation_mwh,capacity_factor,available_energy_mwh,curtailment_mwh,state
+demo-west-wind,p52,onwind,0,500,500,610,0.305,700,90,KS
+demo-east-gas,p53,CCGT,200,200,0,250,0.3125,800,0,KS
+
